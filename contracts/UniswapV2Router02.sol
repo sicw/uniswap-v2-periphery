@@ -12,7 +12,9 @@ import './interfaces/IWETH.sol';
 contract UniswapV2Router02 is IUniswapV2Router02 {
     using SafeMath for uint;
 
+    // Pair合约工厂
     address public immutable override factory;
+    // eth wrapper 把eth包装成token
     address public immutable override WETH;
 
     modifier ensure(uint deadline) {
@@ -46,11 +48,15 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
         if (reserveA == 0 && reserveB == 0) {
             (amountA, amountB) = (amountADesired, amountBDesired);
         } else {
+            // 已经添加过流动性, 以amountA为基础, 计算amountB
             uint amountBOptimal = UniswapV2Library.quote(amountADesired, reserveA, reserveB);
+            // 计算出来的amountB满足期望的amount
             if (amountBOptimal <= amountBDesired) {
+                // 判断计算出来的amountB是否满足最低要求(可能用户设置的)
                 require(amountBOptimal >= amountBMin, 'UniswapV2Router: INSUFFICIENT_B_AMOUNT');
                 (amountA, amountB) = (amountADesired, amountBOptimal);
             } else {
+                // 按照amountADesired计算出来的amountBOptimal不满足条件, 重新按照amountBDesired计算 看看amountAOptimal是否符合条件
                 uint amountAOptimal = UniswapV2Library.quote(amountBDesired, reserveB, reserveA);
                 assert(amountAOptimal <= amountADesired);
                 require(amountAOptimal >= amountAMin, 'UniswapV2Router: INSUFFICIENT_A_AMOUNT');
@@ -68,12 +74,18 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
         address to,
         uint deadline
     ) external virtual override ensure(deadline) returns (uint amountA, uint amountB, uint liquidity) {
+        // 创建pair合约(需要的话) && 计算实际添加的数量
         (amountA, amountB) = _addLiquidity(tokenA, tokenB, amountADesired, amountBDesired, amountAMin, amountBMin);
+        // 获取pair合约
         address pair = UniswapV2Library.pairFor(factory, tokenA, tokenB);
+        // 给pair合约转tokenA、tokenB
         TransferHelper.safeTransferFrom(tokenA, msg.sender, pair, amountA);
         TransferHelper.safeTransferFrom(tokenB, msg.sender, pair, amountB);
+        // 调用mint给to增加流动性代币, 这里没有传tokenAAmount, tokenBAmount. 是在mint中进行计算的.
         liquidity = IUniswapV2Pair(pair).mint(to);
     }
+
+    // 兑换token和eth
     function addLiquidityETH(
         address token,
         uint amountTokenDesired,
@@ -82,6 +94,7 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
         address to,
         uint deadline
     ) external virtual override payable ensure(deadline) returns (uint amountToken, uint amountETH, uint liquidity) {
+        // 计算真实要兑换的token、eth的数量
         (amountToken, amountETH) = _addLiquidity(
             token,
             WETH,
@@ -91,9 +104,14 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
             amountETHMin
         );
         address pair = UniswapV2Library.pairFor(factory, token, WETH);
+        // 给pair添加amountToken个token代币
         TransferHelper.safeTransferFrom(token, msg.sender, pair, amountToken);
+        // 从当前pair合约给WETH合约转amountETH个eth(因为在调用addLiquidityETH方法时payable修饰, EOA用户已经传入eth给pair合约了)
+        // router -->(eth) WETH
         IWETH(WETH).deposit{value: amountETH}();
+        // WETH --> pair
         assert(IWETH(WETH).transfer(pair, amountETH));
+        // 给pair合约增加流动性
         liquidity = IUniswapV2Pair(pair).mint(to);
         // refund dust eth, if any
         if (msg.value > amountETH) TransferHelper.safeTransferETH(msg.sender, msg.value - amountETH);
