@@ -106,14 +106,15 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
         address pair = UniswapV2Library.pairFor(factory, token, WETH);
         // 给pair添加amountToken个token代币
         TransferHelper.safeTransferFrom(token, msg.sender, pair, amountToken);
-        // 从当前pair合约给WETH合约转amountETH个eth(因为在调用addLiquidityETH方法时payable修饰, EOA用户已经传入eth给pair合约了)
-        // router -->(eth) WETH
+        // 从当前router合约给WETH合约转amountETH个eth(因为在调用addLiquidityETH方法时payable修饰, EOA用户已经传入eth给router合约了)
+        // router --> WETH
         IWETH(WETH).deposit{value: amountETH}();
-        // WETH --> pair
+        // WETH --> pair 从weth转给pair合约(添加weth流动性到lp)
         assert(IWETH(WETH).transfer(pair, amountETH));
-        // 给pair合约增加流动性
+        // 给pair合约增加流动性代币
         liquidity = IUniswapV2Pair(pair).mint(to);
         // refund dust eth, if any
+        // token少 eth多 找零
         if (msg.value > amountETH) TransferHelper.safeTransferETH(msg.sender, msg.value - amountETH);
     }
 
@@ -128,10 +129,13 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
         uint deadline
     ) public virtual override ensure(deadline) returns (uint amountA, uint amountB) {
         address pair = UniswapV2Library.pairFor(factory, tokenA, tokenB);
+        // 发送给pair 发送给自己 后面pair使用?
         IUniswapV2Pair(pair).transferFrom(msg.sender, pair, liquidity); // send liquidity to pair
+        // 销毁lq, 给to发送amount0个tokenA amount1个tokenB
         (uint amount0, uint amount1) = IUniswapV2Pair(pair).burn(to);
         (address token0,) = UniswapV2Library.sortTokens(tokenA, tokenB);
         (amountA, amountB) = tokenA == token0 ? (amount0, amount1) : (amount1, amount0);
+        // 要求满足最小期望值
         require(amountA >= amountAMin, 'UniswapV2Router: INSUFFICIENT_A_AMOUNT');
         require(amountB >= amountBMin, 'UniswapV2Router: INSUFFICIENT_B_AMOUNT');
     }
