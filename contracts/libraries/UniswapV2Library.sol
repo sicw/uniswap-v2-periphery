@@ -63,6 +63,8 @@ library UniswapV2Library {
         require(path.length >= 2, 'UniswapV2Library: INVALID_PATH');
         amounts = new uint[](path.length);
         amounts[0] = amountIn;
+        // path:    tokenA,      tokenB,         tokenC
+        // amounts: amountAIn,   amountBOut/In   amountCOut
         for (uint i; i < path.length - 1; i++) {
             (uint reserveIn, uint reserveOut) = getReserves(factory, path[i], path[i + 1]);
             amounts[i + 1] = getAmountOut(amounts[i], reserveIn, reserveOut);
@@ -74,6 +76,8 @@ library UniswapV2Library {
         require(path.length >= 2, 'UniswapV2Library: INVALID_PATH');
         amounts = new uint[](path.length);
         amounts[amounts.length - 1] = amountOut;
+        // path:    tokenA,      tokenB,         tokenC
+        // amounts: amountAIn,   amountBIn/Out   amountOut
         for (uint i = path.length - 1; i > 0; i--) {
             (uint reserveIn, uint reserveOut) = getReserves(factory, path[i - 1], path[i]);
             amounts[i - 1] = getAmountIn(amounts[i], reserveIn, reserveOut);
