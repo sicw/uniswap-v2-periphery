@@ -147,6 +147,7 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
         address to,
         uint deadline
     ) public virtual override ensure(deadline) returns (uint amountToken, uint amountETH) {
+        // 这里的to地址是router(this)
         (amountToken, amountETH) = removeLiquidity(
             token,
             WETH,
@@ -156,8 +157,12 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
             address(this),
             deadline
         );
+        // 给实际的to发送token
         TransferHelper.safeTransfer(token, to, amountToken);
+        // 在burn中调用的transfer, eth还是在weth中, 只不过是将eth转移到了router账户下
+        // 将eth发送到router合约中
         IWETH(WETH).withdraw(amountETH);
+        // 给实际的to发送eth router -> to
         TransferHelper.safeTransferETH(to, amountETH);
     }
     function removeLiquidityWithPermit(
