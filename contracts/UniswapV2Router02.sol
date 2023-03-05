@@ -276,7 +276,7 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
         amounts = UniswapV2Library.getAmountsOut(factory, amountIn, path);
         // 计算出的tokenAmountOut输出要大于期望的tokenOut
         require(amounts[amounts.length - 1] >= amountOutMin, 'UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT');
-        // 将tokenA的合约代币 从msg.sender 转到 (tokenA<-->tokenB Pair合约)
+        // 将tokenA的合约代币 从msg.sender 转到 Pair合约(tokenA<-->tokenB)
         TransferHelper.safeTransferFrom(
             path[0], msg.sender, UniswapV2Library.pairFor(factory, path[0], path[1]), amounts[0]
         );
